@@ -1,10 +1,13 @@
 module MultiMail
   module Receiver
+    # Mailgun's incoming email receiver.
     class Mailgun < MultiMail::Service
       include MultiMail::Receiver::Base
 
       requires :mailgun_api_key
 
+      # Initializes a Mailgun incoming email receiver.
+      #
       # @param [Hash] options required and optional arguments
       # @option opts [String] :mailgun_api_key a Mailgun API key
       def initialize(options = {})
@@ -12,9 +15,11 @@ module MultiMail
         @mailgun_api_key = options[:mailgun_api_key]
       end
 
+      # Returns whether a request originates from Mailgun.
+      #
       # @param [Hash] params the content of Mailgun's webhook
       # @return [Boolean] whether the request originates from Mailgun
-      # @raises [KeyError] if the request is missing parameters
+      # @raise [IndexError] if the request is missing parameters
       # @see http://documentation.mailgun.net/user_manual.html#securing-webhooks
       def valid?(params)
         params.fetch('signature') == OpenSSL::HMAC.hexdigest(
@@ -22,6 +27,8 @@ module MultiMail
           '%s%s' % [params.fetch('timestamp'), params.fetch('token')])
       end
 
+      # Transforms the content of Mailgun's webhook into a list of messages.
+      #
       # @param [Hash] params the content of Mailgun's webhook
       # @return [Array<Mail::Message>] messages
       # @note Mailgun sends the message headers both individually and in the
@@ -61,7 +68,7 @@ module MultiMail
           'attachment-x',
           'content-id-map',
         ].each do |key|
-          if !params[key].nil? && !params[key].empty?
+          unless params[key].nil? || params[key].empty?
             message[key] = params[key]
           end
         end
@@ -69,6 +76,8 @@ module MultiMail
         [message]
       end
 
+      # Returns whether a message is spam.
+      #
       # @param [Mail::Message] message a message
       # @return [Boolean] whether the message is spam
       # @see http://documentation.mailgun.net/user_manual.html#spam-filter
@@ -77,7 +86,7 @@ module MultiMail
       # @note We may also inspect `X-Mailgun-SScore` and `X-Mailgun-Spf`, whose
       #   possible values are "Pass", "Neutral", "Fail" and "SoftFail".
       def spam?(message)
-        message['X-Mailgun-Sflag'].value == 'Yes'
+        !message['X-Mailgun-Sflag'].nil? && message['X-Mailgun-Sflag'].value == 'Yes'
       end
     end
   end

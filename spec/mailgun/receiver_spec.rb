@@ -17,7 +17,7 @@ describe MultiMail::Receiver::Mailgun do
     before :all do
       @service = MultiMail::Receiver.new({
         :provider => :mailgun,
-        :mailgun_api_key => credentials[:mailgun_api_key],
+        :mailgun_api_key => 'foo',
       })
     end
 
@@ -31,7 +31,7 @@ describe MultiMail::Receiver::Mailgun do
       end
 
       it 'should raise an error if parameters are missing' do
-        expect{ @service.valid?(params('missing')) }.to raise_error(KeyError)
+        expect{ @service.valid?(params('missing')) }.to raise_error(IndexError)
       end
     end
 

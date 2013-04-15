@@ -1,10 +1,13 @@
 module MultiMail
   module Receiver
+    # Mandrill's incoming email receiver.
     class Mandrill < MultiMail::Service
       include MultiMail::Receiver::Base
 
       requires :mandrill_api_key
 
+      # Initializes a Mandrill incoming email receiver.
+      #
       # @param [Hash] options required and optional arguments
       # @option opts [String] :mandrill_api_key a Mandrill API key
       def initialize(options = {})
@@ -12,27 +15,36 @@ module MultiMail
         @mandrill_api_key = options[:mandrill_api_key]
       end
 
+      # Returns whether a request is an inbound event.
+      #
       # @param [Hash] params the content of Mandrill's webhook
-      # @return [Boolean] whether the request originates from Mandrill
+      # @return [Boolean] whether the request is an inbound event
       def valid?(params)
         JSON.parse(params['mandrill_events']).all? do |event|
           event.fetch('event') == 'inbound'
         end
       end
 
-      # @param [Mail::Message] message a message
-      # @return [Boolean] whether the message is spam
-      def spam?(message)
-        false
-      end
-
+      # Transforms the content of Mandrill's webhook into a list of messages.
+      #
       # @param [Hash] params the content of Mandrill's webhook
       # @return [Array<Mail::Message>] messages
       # @todo parse attachments properly
       def transform(params)
         JSON.parse(params['mandrill_events']).map do |event|
+          headers = Multimap.new
+          event['msg']['headers'].each do |key,value|
+            if Array === value
+              value.each do |v|
+                headers[key] = v
+              end
+            else
+              headers[key] = value
+            end
+          end
+
           message = Mail.new do
-            headers event['msg']['headers'].reject{|k,_| k=='Received'} # @todo
+            headers headers
 
             # The following are redundant with `message-headers`:
             #
@@ -65,6 +77,14 @@ module MultiMail
 
           message
         end
+      end
+
+      # Returns whether a message is spam.
+      #
+      # @param [Mail::Message] message a message
+      # @return [Boolean] whether the message is spam
+      def spam?(message)
+        false
       end
     end
   end
